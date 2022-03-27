@@ -444,7 +444,8 @@ class UrlReader(FileFormat):
 
             reader = self.get_reader(f.name)
             data = reader.read()
-            remove(f.name)
+            #remove(f.name)
+            data.filelocation = f.name
         # Override name set in from_file() to avoid holding the temp prefix
         data.name = path.splitext(name)[0]
         data.origin = self.filename

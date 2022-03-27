@@ -554,6 +554,7 @@ class _FileReader:
             if ext in Compression.all:
                 continue
             if fnmatch(path.basename(filename), '*' + ext):
+                print("DETECTED EXTENSION", ext, reader, filename)
                 return reader(filename)
 
         raise MissingReaderException('No readers for file "{}"'.format(filename))
