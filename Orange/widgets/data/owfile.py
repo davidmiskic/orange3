@@ -325,12 +325,28 @@ class OWFile(widget.OWWidget, RecentPathsWComboMixin):
         self.load_data()
 
     def select_reader(self, n):
-        print("select_reader", self.source)
         if self.source != self.LOCAL_FILE:
-            path = self.recent_paths[0]
+            self.closeContext()
+            self.domain_editor.set_domain(None)
+            self.apply_button.setEnabled(False)
+            self.clear_messages()
+            self.set_file_list()
             reader = self.available_readers[n - 1]
-            path.file_format = reader.qualified_name()
-            self.load_data()
+            url_object = UrlReader(self.last_url)
+            try:
+                data = url_object.read_select_format(reader)
+                self.infolabel.setText(self._describe(data))
+                self.data = data
+                self.openContext(data.domain)
+                self.apply_domain_edit()  # sends data
+                self.openContext(data.domain)
+            except Exception as e:
+                error = self.Error.unknown
+                error(str(e))
+                self.data = None
+                self.sheet_box.hide()
+                self.Outputs.data.send(None)
+                self.infolabel.setText("No data.")
             return
 
         if self.recent_paths:
@@ -409,27 +425,27 @@ class OWFile(widget.OWWidget, RecentPathsWComboMixin):
         else:
             # load url into file immediately
             url = self.url_combo.currentText().strip()
-            if url == '': return self.Information.no_file_selected
-            url_data = UrlReader(url).read()
-            self.add_path(url_data.filelocation)
-            self.source = self.LOCAL_FILE
-            if not url:
-                return self.Information.no_file_selected
+            if url == '' or not url: return self.Information.no_file_selected
+            self.last_url = url
+            url_object = UrlReader(url)
+            self.reader_combo.setCurrentIndex(0)
+            self.reader_combo.setEnabled(True)
 
         def mark_problematic_reader():
             self.reader_combo.setItemData(self.reader_combo.currentIndex(),
                                           QBrush(Qt.red), Qt.ForegroundRole)
 
-        try:
-            self.reader = self._get_reader()  # also sets current reader index
-            assert self.reader is not None
-        except MissingReaderException:
-            mark_problematic_reader()
-            return self.Error.missing_reader
-        except Exception as ex:
-            mark_problematic_reader()
-            log.exception(ex)
-            return lambda x=ex: self.Error.unknown(str(x))
+        if self.source == self.LOCAL_FILE:
+            try:
+                self.reader = self._get_reader()  # also sets current reader index
+                assert self.reader is not None
+            except MissingReaderException:
+                mark_problematic_reader()
+                return self.Error.missing_reader
+            except Exception as ex:
+                mark_problematic_reader()
+                log.exception(ex)
+                return lambda x=ex: self.Error.unknown(str(x))
 
         try:
             self._update_sheet_combo()
@@ -438,7 +454,7 @@ class OWFile(widget.OWWidget, RecentPathsWComboMixin):
 
         with log_warnings() as warnings:
             try:
-                data = self.reader.read()
+                data = self.reader.read() if self.source == self.LOCAL_FILE else url_object.read()
             except Exception as ex:
                 mark_problematic_reader()
                 log.exception(ex)
@@ -479,19 +495,6 @@ class OWFile(widget.OWWidget, RecentPathsWComboMixin):
                 reader = FileFormat.get_reader(path)
             if self.recent_paths and self.recent_paths[0].sheet:
                 reader.select_sheet(self.recent_paths[0].sheet)
-            return reader
-        else:
-            path = self.last_path()
-            self.reader_combo.setEnabled(True)
-            if self.recent_paths and self.recent_paths[0].file_format:
-                qname = self.recent_urls[0].file_format
-                qname_index = {r.qualified_name(): i for i, r in enumerate(self.available_readers)}
-                if qname in qname_index:
-                    self.reader_combo.setCurrentIndex(qname_index[qname] + 1)
-            else:
-                self.reader_combo.setCurrentIndex(0)
-            self.reader_combo.setEnabled(True)
-            reader = FileFormat.get_reader(path)
             return reader
 
     def _update_sheet_combo(self):

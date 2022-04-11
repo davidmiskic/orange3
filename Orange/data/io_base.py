@@ -27,7 +27,6 @@ from Orange.util import Registry, flatten, namegen
 
 __all__ = ["FileFormatBase", "Flags", "DataTableMixin", "PICKLE_PROTOCOL"]
 
-
 PICKLE_PROTOCOL = 4
 
 
@@ -538,7 +537,7 @@ class DataTableMixin:
 
 class _FileReader:
     @classmethod
-    def get_reader(cls, filename):
+    def get_reader(cls, filename, target_reader = None):
         """Return reader instance that can be used to read the file
 
         Parameters
@@ -553,7 +552,7 @@ class _FileReader:
             # Skip ambiguous, invalid compression-only extensions added on OSX
             if ext in Compression.all:
                 continue
-            if fnmatch(path.basename(filename), '*' + ext):
+            if (target_reader is None and fnmatch(path.basename(filename), '*' + ext)) or (target_reader is not None and target_reader == reader) :
                 print("DETECTED EXTENSION", ext, reader, filename)
                 return reader(filename)
 

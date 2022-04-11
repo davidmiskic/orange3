@@ -441,14 +441,34 @@ class UrlReader(FileFormat):
             with NamedTemporaryFile(suffix=extension, delete=False) as f:
                 f.write(response.read())
                 # delete=False is a workaround for https://bugs.python.org/issue14243
-
             reader = self.get_reader(f.name)
             data = reader.read()
-            #remove(f.name)
-            data.filelocation = f.name
+            remove(f.name)
+            #data.filelocation = f.name
         # Override name set in from_file() to avoid holding the temp prefix
-        data.name = path.splitext(name)[0]
-        data.origin = self.filename
+        #data.name = path.splitext(name)[0]
+        # self.temp_path = self.filename
+        # self.data = data
+        return data
+
+    def read_select_format(self, reader):
+        self.filename = self._trim(self._resolve_redirects(self.filename))
+        with contextlib.closing(self.urlopen(self.filename)) as response:
+            name = self._suggest_filename(response.headers['content-disposition'])
+            # using Path since splitext does not extract more extensions
+            extension = ''.join(Path(name).suffixes)  # get only file extension
+            with NamedTemporaryFile(suffix=extension, delete=False) as f:
+                f.write(response.read())
+                # delete=False is a workaround for https://bugs.python.org/issue14243
+
+            reader = self.get_reader(f.name, reader)
+            data = reader.read()
+            remove(f.name)
+            # data.filelocation = f.name
+        # Override name set in from_file() to avoid holding the temp prefix
+        # data.name = path.splitext(name)[0]
+        # self.temp_path = self.filename
+        # self.data = data
         return data
 
     def _resolve_redirects(self, url):
